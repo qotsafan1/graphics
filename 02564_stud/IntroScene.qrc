@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>data/cow.mtl</file>
+        <file>data/cow.obj</file>
+        <file>shaders/IntroScene/object.frag</file>
+        <file>shaders/IntroScene/object.vert</file>
+        <file>shaders/IntroScene/wire.vert</file>
+        <file>shaders/IntroScene/wire.geom</file>
+        <file>shaders/IntroScene/wire.frag</file>
+    </qresource>
+</RCC>
