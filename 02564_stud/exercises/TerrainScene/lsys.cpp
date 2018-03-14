@@ -117,12 +117,24 @@ public:
             float s = elem.datum1;
             float w = elem.datum2;
 
-            if(s>=smin)
-            {
-                out.push_back(LSElement(LS_DRAW, s));
-                out.push_back(LSElement(LS_A, s*r1, w*pow(q,e)));
-                return true;
-            }
+                if(s>=smin)
+                {
+                    //Working tree rule
+                    out.push_back(LSElement(LS_WIDTH, w));
+                    out.push_back(LSElement(LS_DRAW, s));
+                    out.push_back(LSElement(LS_LEFT_BRACKET));
+                    out.push_back(LSElement(LS_TURN, alpha1));
+                    out.push_back(LSElement(LS_ROLL, phi1));
+                    out.push_back(LSElement(LS_A, s*r1, w*pow(q,e)));
+                    out.push_back(LSElement(LS_RIGHT_BRACKET));
+                    out.push_back(LSElement(LS_LEFT_BRACKET));
+                    out.push_back(LSElement(LS_TURN, alpha2));
+                    out.push_back(LSElement(LS_ROLL, phi2));
+                    out.push_back(LSElement(LS_A, s*r2, w*pow(1-q,e)));
+                    out.push_back(LSElement(LS_RIGHT_BRACKET));
+
+                    return true;
+                }
         }
         else out.push_back(elem);
 
@@ -135,7 +147,9 @@ struct TurtleState
 {
     float w;
     Mat4x4f M;
-    TurtleState(float w0, const Mat4x4f& M0): w(w0), M(M0) {}
+    float alpha;
+    float phi;
+    TurtleState(float w0, const Mat4x4f& M0): w(w0), M(M0), alpha(0.0), phi(0.0) {}
 };
 
 // The turtle. Contains state and functions for crawling in 3D.
@@ -146,13 +160,27 @@ class Turtle
 
 public:
     Turtle(float w0): turtle_state(w0, identity_Mat4x4f()) {}
-    void turn(float angle) {/* implement me */}
-    void roll(float angle) {/* implement me */}
-    void move(float dist) {/* implement me */}
-    void push() {/* implement me */}
-    void pop() {/* implement me */}
-    void set_width(float w) {/* implement me */}
-
+    void turn(float angle) {
+        float rad_angle = M_PI/180.0*angle;
+        turtle_state.M = turtle_state.M*rotation_Mat4x4f(YAXIS, -rad_angle);
+        turtle_state.alpha += rad_angle;
+    }
+    void roll(float angle) {
+        float rad_angle = M_PI/180.0*angle;
+        turtle_state.M = turtle_state.M*rotation_Mat4x4f(ZAXIS, -rad_angle);
+        turtle_state.phi += rad_angle;
+    }
+    void move(float dist) {
+        turtle_state.M = turtle_state.M*translation_Mat4x4f(dist*Vec3f(0,0,1));
+    }
+    void push() {
+        tss.push(turtle_state);
+    }
+    void pop() {
+        turtle_state = tss.top();
+        tss.pop();
+    }
+    void set_width(float w) {turtle_state.w = w;}
     float get_width() const {return turtle_state.w;}
     const Mat4x4f& get_transform() const {return turtle_state.M;}
 };
@@ -167,13 +195,41 @@ void interpret(vector<LSElement> str, float w0,
         LSElement elem = str[i];
         switch(elem.symbol)
         {
-        case LS_DRAW:
-            truncated_cone(turtle.get_transform(), elem.datum1,
-                           turtle.get_width(), turtle.get_width()*0.75,
-                           triangles, normals);
-            turtle.move(elem.datum1);
-            break;
-            // Implement the other cases
+            case LS_DRAW:
+                truncated_cone(turtle.get_transform(), elem.datum1,
+                               turtle.get_width(), turtle.get_width()*0.75,
+                               triangles, normals);
+                turtle.move(elem.datum1);
+                break;
+
+            case LS_WIDTH:
+                turtle.set_width(elem.datum1);
+                break;
+
+            case LS_LEFT_BRACKET:
+                turtle.push();
+                break;
+
+            case LS_RIGHT_BRACKET:
+                turtle.pop();
+                break;
+
+            case LS_TURN:
+                turtle.turn(elem.datum1);
+                break;
+
+            case LS_ROLL:
+                turtle.roll(elem.datum1);
+                break;
+
+            case LS_A:
+                turtle.set_width(elem.datum2);
+                truncated_cone(turtle.get_transform(), elem.datum1,
+                               turtle.get_width(), turtle.get_width()*0.75,
+                               triangles, normals);
+                turtle.move(elem.datum1);
+                break;
+
         }
     }
 }
