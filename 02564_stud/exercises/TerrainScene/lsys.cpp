@@ -25,17 +25,18 @@ using namespace GLGraphics;
 // Produce the mesh for a truncated cone
 
 // Produce the mesh for a truncated cone
-void truncated_cone(const Mat4x4f& m,           // transformation matrix used for the points
-                    float l,                    // length of truncated cone
-                    float w0,                   // width at base
-                    float w1,                   // width at top
-                    vector<Vec3f>& triangles,   // triangles (out)
-                    vector<Vec3f>& normals)     // normals (out)
+void truncated_cone(const Mat4x4f& m, // transformation matrix used for the points
+                    float l, // length of truncated cone
+                    float w0, // width at base
+                    float w1, // width at top
+                    vector<Vec3f>& vertex_data)
 {
     float len = sqrt(l*l + sqr(w0-w1));
     float a = l/len;
     float b = (w0-w1)/len;
+
     const int N = 10;
+
     for(int i=0;i<=N;++i)
     {
         float alpha = 2.0*M_PI*float(i)/N;
@@ -50,23 +51,33 @@ void truncated_cone(const Mat4x4f& m,           // transformation matrix used fo
         Vec3f n2 = m.mul_3D_vector(a*Vec3f(cos(alpha), sin(alpha), b));
         Vec3f n3 = n2;
 
-        normals.push_back(n0);
-        triangles.push_back(p0);
+        if(i==0){
+            if(vertex_data.size() >= 2) {
+                //Interleave
+                int vert_size = vertex_data.size();
+                vertex_data.push_back(vertex_data[vert_size-2]);
+                vertex_data.push_back(vertex_data[vert_size-1]);
+                vertex_data.push_back(p1);
+                vertex_data.push_back(n1);
+            }
 
-        normals.push_back(n1);
-        triangles.push_back(p1);
+            //Interleave
+            vertex_data.push_back(p1);
+            vertex_data.push_back(n1);
+            vertex_data.push_back(p0);
+            vertex_data.push_back(n0);
+        }
 
-        normals.push_back(n3);
-        triangles.push_back(p3);
+        //Interleave
+        vertex_data.push_back(p3);
+        vertex_data.push_back(n3);
+        vertex_data.push_back(p2);
+        vertex_data.push_back(n2);
 
-        normals.push_back(n3);
-        triangles.push_back(p3);
-
-        normals.push_back(n2);
-        triangles.push_back(p2);
-
-        normals.push_back(n0);
-        triangles.push_back(p0);
+        if (i==N) {
+            vertex_data.push_back(p2);
+            vertex_data.push_back(n2);
+        }
     }
 }
 
@@ -198,7 +209,7 @@ void interpret(vector<LSElement> str, float w0,
             case LS_DRAW:
                 truncated_cone(turtle.get_transform(), elem.datum1,
                                turtle.get_width(), turtle.get_width()*0.75,
-                               triangles, normals);
+                               triangles);
                 turtle.move(elem.datum1);
                 break;
 
@@ -226,7 +237,7 @@ void interpret(vector<LSElement> str, float w0,
                 turtle.set_width(elem.datum2);
                 truncated_cone(turtle.get_transform(), elem.datum1,
                                turtle.get_width(), turtle.get_width()*0.75,
-                               triangles, normals);
+                               triangles);
                 turtle.move(elem.datum1);
                 break;
 
@@ -235,24 +246,34 @@ void interpret(vector<LSElement> str, float w0,
 }
 
 // Create an OpenGL vertex array from a vector of triangles and normals
-GLuint create_vertex_array_object(vector<Vec3f>& triangles, vector<Vec3f>& normals)
+GLuint create_vertex_array_object(vector<Vec3f>& vertex_data)
 {
     GLuint VAO, VBO[2];
     GLuint vert_attrib = ShaderProgramDraw::get_generic_attrib_location("vertex");
     GLuint norm_attrib = ShaderProgramDraw::get_generic_attrib_location("normal");
     GLuint texcoord_attrib = ShaderProgramDraw::get_generic_attrib_location("texcoord");
+
     glGenVertexArrays(1, &VAO);
     glGenBuffers(2, &VBO[0]);
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-    glBufferData(GL_ARRAY_BUFFER,triangles.size()*sizeof(Vec3f),&triangles[0],GL_STATIC_DRAW);
-    glVertexAttribPointer(vert_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    int sizeOfFloat = sizeof(Vec3f);
+    int vertexSize = 1 * sizeOfFloat;
+    const int stride = 2*vertexSize;
+    void* offsetPosition = (void*)0;
+    void* offsetNormal = (void*)vertexSize;
+
+    glBufferData(GL_ARRAY_BUFFER,vertex_data.size()*sizeof(Vec3f), &vertex_data[0],GL_STATIC_DRAW);
+    glVertexAttribPointer(vert_attrib, 3, GL_FLOAT, GL_FALSE, stride, offsetPosition);
     glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
-    glBufferData(GL_ARRAY_BUFFER,normals.size()*sizeof(Vec3f),&normals[0],GL_STATIC_DRAW);
-    glVertexAttribPointer(norm_attrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glBufferData(GL_ARRAY_BUFFER,vertex_data.size()*sizeof(Vec3f), &vertex_data[0],GL_STATIC_DRAW);
+    glVertexAttribPointer(norm_attrib, 3, GL_FLOAT, GL_FALSE, stride, offsetNormal);
+
     glVertexAttrib3f(texcoord_attrib, 0, 0,0);
     glEnableVertexAttribArray(vert_attrib);
     glEnableVertexAttribArray(norm_attrib);
+
     return VAO;
 }
 
@@ -282,5 +303,5 @@ GLuint make_tree (GLint& count)
 
     // Generate a vertex array object and return that.
     count = static_cast<GLint>(triangles.size());
-    return create_vertex_array_object(triangles, normals);
+    return create_vertex_array_object(triangles);
 }

@@ -157,3 +157,5 @@ DISTFILES += \
     shaders/TerrainScene/integrator.frag \
     shaders/TerrainScene/integrator.geom \
     shaders/TerrainScene/integrator.vert \
+    shaders/TerrainScene/tree.frag \
+    shaders/TerrainScene/tree.vert

@@ -110,7 +110,7 @@ void TerrainScene::draw_objects(ShaderProgramDraw& shader_prog, const GLGraphics
     for(int i=0;i<objects.size();++i)
         objects[i].display(shader_prog);
 }
-
+/*
 void TerrainScene::draw_trees(ShaderProgramDraw& shader_prog, const GLGraphics::HeightMap& terra)
 {
     static GLint count;
@@ -121,6 +121,40 @@ void TerrainScene::draw_trees(ShaderProgramDraw& shader_prog, const GLGraphics::
     glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES,0, count);
     glBindVertexArray(0);
+}
+*/
+
+void TerrainScene::draw_trees(ShaderProgramDraw& shader_prog, const GLGraphics::HeightMap& terra)
+{
+    const int N = 100;
+
+    static GLint count;
+    static GLuint vao = make_tree(count);
+    static Mat4x4f M[N];
+    static Vec4f mat_diff[N];
+    static bool was_here = false;
+
+    if(!was_here) {
+        was_here = true;
+
+        for(int i=0;i<N;++i) {
+            Vec3f p(198.0 + (rand() / float(RAND_MAX))*100.0, 198.0 + rand() / (float(RAND_MAX))*100.0,rand() / (float(RAND_MAX))*100); // Set p to some random position.
+
+            p[2] = terra.height(p);
+            M[i] = transpose(translation_Mat4x4f(p)*scaling_Mat4x4f(Vec3f(max(0.01, (rand() / float(RAND_MAX))*0.05))));
+
+            // Multiply a random scaling and a rotation on to M[i]
+            mat_diff[i] = Vec4f(rand() / (float(RAND_MAX)),rand() / (float(RAND_MAX)), rand() / (float(RAND_MAX)),0); // make this guy random too.
+        }
+    }
+    shader_prog.set_model_matrix(identity_Mat4x4f());
+    glBindVertexArray(vao);
+
+    for(int i=0;i<100;++i) {
+        glUniformMatrix4fv(shader_prog.get_uniform_location("InstanceMatrix"), 1, GL_FALSE,(const GLfloat*) &M[i]);
+        glUniform4fv(shader_prog.get_uniform_location("mat_diff"),1, (const GLfloat*) &mat_diff[i]);
+        glDrawArrays(GL_TRIANGLE_STRIP,0, count);
+    }
 }
 
 void TerrainScene::set_light_and_camera(ShaderProgramDraw& shader_prog)
@@ -138,6 +172,7 @@ void TerrainScene::render_direct(bool reload)
     static ShaderProgramDraw terrain_shader(shader_path, "terrain.vert", "", "terrain.frag");
     static ShaderProgramDraw object_shader(shader_path, "object.vert", "", "object.frag");
     static ShaderProgramDraw ocean_shader(shader_path, "ocean.vert", "", "ocean.frag");
+    static ShaderProgramDraw tree_shader(shader_path, "tree.vert", "", "tree.frag");
 
     if(reload)
     {
@@ -145,6 +180,7 @@ void TerrainScene::render_direct(bool reload)
         ocean_shader.reload();
         terrain_shader.reload();
         object_shader.reload();
+        tree_shader.reload();
     }
 
     glClearColor(0.4f,0.35f,0.95f,0.0f);
@@ -158,7 +194,10 @@ void TerrainScene::render_direct(bool reload)
     set_light_and_camera(object_shader);
     draw_objects(object_shader, terrain);
 
-    draw_trees(object_shader,terrain);
+    tree_shader.use();
+    set_light_and_camera(tree_shader);
+    draw_trees(tree_shader, terrain);
+
 
     ocean_shader.use();
     set_light_and_camera(ocean_shader);
