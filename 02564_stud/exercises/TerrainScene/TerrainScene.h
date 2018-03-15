@@ -22,8 +22,8 @@ class TerrainScene : public QGLWidget
 {
     Q_OBJECT
 
-//    VoxelWorld terrain;
-    Terrain terrain;
+    VoxelWorld terrain;
+    //Terrain terrain;
 
     const DirectionalLight default_light = DirectionalLight(
                 CGLA::Vec3f(0.5f,0.5f,1.f),         // direction

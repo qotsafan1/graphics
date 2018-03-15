@@ -55,6 +55,7 @@ void main()
 {
     // Nice darkgreen grass color
     vec3 f_color = vec3(0.0,0.2,0.0);
+    vec3 hill_color = vec3(84/256.0, 54/256.0, 0/256.0);
 
     //Just a small variable to make the grass a little darker close to the water
     float water_height = -0.6;
@@ -65,7 +66,14 @@ void main()
     //How many noise repeats
     float repeats = 8;
 
-    vec3 color = vec3(noise(pos.xy*repeats)*opacity+f_color.x*(sqrt(pos.z-water_height)),                           noise(pos.xy*repeats)*opacity+f_color.y*(sqrt(pos.z-water_height)),                           noise(pos.xy*repeats)*opacity+f_color.z*(sqrt(pos.z-water_height)));
+    vec3 color = vec3(noise(pos.xy*repeats)*opacity+f_color.x*
+                      (sqrt(pos.z-water_height)*(1-smoothstep(0, 10, pos.z)))+hill_color.x*(1-smoothstep(3, 50, pos.z)),
+                noise(pos.xy*repeats)*opacity+f_color.y*
+                        (sqrt(pos.z-water_height)*(1-smoothstep(0, 10, pos.z)))
+                        +hill_color.y*(1-smoothstep(3, 50, pos.z)),
+                noise(pos.xy*repeats)*opacity+f_color.z*
+                        (sqrt(pos.z-water_height)*(1-smoothstep(0, 10, pos.z)))
+                        +hill_color.z*(1-smoothstep(3, 50, pos.z)));
 
-    fragColor = vec4(color,1.0);
+    fragColor = vec4(color, 1.0);//texture(noise_tex, pos.xy*0.05);
 }

@@ -93,15 +93,47 @@ void VoxelWorld::update(const CGLA::Vec3f& _p, int N, function<float(const CGLA:
 
 void VoxelWorld::build()
 {
-//    ifstream ifs("world.raw",ios::binary);
-//    if(ifs.good())
-//    {
-//        cout << "File exists, trying to load world" << endl;
-//        ifs.read(reinterpret_cast<char*>(world_grid.get()),sizeof(float)*world_grid.get_size());
-//    }
-//    else
-    {
-    }
+    // Create a function that takes a grid g as argument and a voxelw
+    auto f = [&](RGrid<float>& g, const CGLA::Vec3i& p) {
+        // 2D center
+        Vec2i v(256,256);
+
+        float k0 = 60.0;
+        float sigma0 = 200;
+        float k1 = 10;
+        float sigma1 = 150;
+        float xmid = (p[0]-250);
+        float ymid = (p[1]-250);
+
+        // assign a value to the grid at the given voxel
+        //make mountain
+        float h_val = k0*exp(-(xmid*xmid+ymid*ymid)/(sigma0*sigma0))+ k1*exp(-(xmid*xmid+ymid*ymid)/(sigma1*sigma1))*turbulence(p[0], p[1]);
+
+        //Bigger extrude at the top of the mountain
+        h_val += k0*5*exp(-(xmid*xmid+ymid*ymid)/(sigma0*sigma0/5));
+        //make valley in the middle of the mountain
+        h_val = h_val - k0*8*exp(-(xmid*xmid+ymid*ymid)/(sigma0*sigma0/8));
+
+        float f = p[2] - h_val;
+        float limits = 5;
+
+        //clamp f
+        f = min(limits, (max(-limits, f)));
+
+        //add subtle valleys to the mountain
+        float k2 = 20;
+        float s1 = 0.2;
+        f = f + k2*abs(noise(s1*p[0], s1*p[1], s1*p[2]));
+
+        //Add deeper crevasses
+        k2 = 60;
+        s1 = 0.6;
+        f = f + k2*abs(noise(s1*p[0], s1*p[1], s1*p[2]));
+        g[p] = f;
+    };
+    // Now call this for each voxel … parallelized
+    for_each_voxel(world_grid, f);
+
     cout << "polygonizing world" << endl;
 
     for(int i=0;i<WORLD_XDIM/CELL_SIZE;++i)
